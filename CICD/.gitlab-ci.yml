@@ -1,0 +1,78 @@
+stages:
+  - build
+  - style
+  - test
+  - deploy
+  
+build:
+  stage: build
+  tags:
+    - build_tag
+  script:
+    - cd src/cat
+    - make all
+    - cd ../grep
+    - make all
+  artifacts:
+    paths:
+      - src/cat/s21_cat
+      - src/grep/s21_grep
+    expire_in: 30 days
+  after_script:
+    - cd src
+    - chmod +x telegram_bot.sh
+    - sh telegram_bot.sh
+
+style:
+  stage: style
+  tags:
+    - style_tag
+  script:
+    - cp materials/linters/.clang-format src/
+    - clang-format -n src/cat/*.c src/grep/*.c &> src/style_res.txt
+    - cat src/style_res.txt
+    - cd src
+    - sh style_script.sh
+  artifacts:
+    paths:
+    - src/style_res.txt
+  after_script:
+    - cd src
+    - chmod +x telegram_bot.sh
+    - sh telegram_bot.sh
+
+test:
+  stage: test
+  tags:
+    - test_tag
+  script:
+    - cd src/cat
+    - bash test_func_cat.sh >> ../testass.txt
+    - cd ../grep
+    - bash test_func_grep.sh >> ../testass.txt
+    - cd ..
+    - sh func_test.sh
+  needs:
+    - build
+    - style
+  artifacts:
+    paths:
+      - src/testass.txt
+  after_script:
+    - cd src
+    - chmod +x telegram_bot.sh
+    - sh telegram_bot.sh
+
+deploy:
+  stage: deploy
+  tags:
+    - deploy_tag
+  # when: manual
+  script:
+    - cd src
+    - bash deploy_script.sh
+  after_script:
+    - cd src
+    - chmod +x telegram_bot.sh
+    - sh telegram_bot.sh
+  allow_failure: false
